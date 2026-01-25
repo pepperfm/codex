@@ -45,18 +45,11 @@ impl Default for MarkdownStyles {
             // Самый полезный акцент: inline-code — основной “якорь”.
             // Intentionally yellow for visibility against muted terminal themes.
             code: Style::new().yellow().bold(),
-
-            // Курсив/жирный — как ты и хочешь использовать в policy
             emphasis: Style::new().italic(),
             strong: Style::new().bold(),
-
             strikethrough: Style::new().crossed_out(),
-
-            // Маркеры списков — делаем заметными, чтобы списки “читались”
             ordered_list_marker: Style::new().light_blue().bold(),
             unordered_list_marker: Style::new().light_blue().bold(),
-
-            // Ссылки и callouts
             link: Style::new().blue().underlined(),
             blockquote: Style::new().green(),
         }

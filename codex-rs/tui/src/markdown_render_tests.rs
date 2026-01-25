@@ -381,11 +381,7 @@ fn blockquote_heading_inherits_heading_style() {
     assert_eq!(
         text.lines,
         [
-            Line::from_iter([
-                "> ".into(),
-                "# ".dark_gray().bold(),
-                "test header".dark_gray().bold(),
-            ])
+            Line::from_iter(["> ".into(), "# ".dark_gray().bold(), "test header".dark_gray().bold()])
             .green(),
             Line::from_iter(["> "]).green(),
             Line::from_iter(["> ", "in blockquote"]).green(),
