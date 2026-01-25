@@ -36,19 +36,19 @@ impl Default for MarkdownStyles {
         use ratatui::style::Stylize;
 
         Self {
-            h1: Style::new().bold().underlined(),
-            h2: Style::new().bold(),
-            h3: Style::new().bold().italic(),
-            h4: Style::new().italic(),
-            h5: Style::new().italic(),
-            h6: Style::new().italic(),
-            code: Style::new().cyan(),
+            h1: Style::new().cyan().bold(),
+            h2: Style::new().cyan().bold(),
+            h3: Style::new().cyan().bold(),
+            h4: Style::new().cyan().bold(),
+            h5: Style::new().cyan().bold(),
+            h6: Style::new().cyan().bold(),
+            code: Style::new().yellow().bold(),
             emphasis: Style::new().italic(),
             strong: Style::new().bold(),
             strikethrough: Style::new().crossed_out(),
             ordered_list_marker: Style::new().light_blue(),
             unordered_list_marker: Style::new(),
-            link: Style::new().cyan().underlined(),
+            link: Style::new().blue().underlined(),
             blockquote: Style::new().green(),
         }
     }
@@ -184,7 +184,10 @@ where
             Tag::Emphasis => self.push_inline_style(self.styles.emphasis),
             Tag::Strong => self.push_inline_style(self.styles.strong),
             Tag::Strikethrough => self.push_inline_style(self.styles.strikethrough),
-            Tag::Link { dest_url, .. } => self.push_link(dest_url.to_string()),
+            Tag::Link { dest_url, .. } => {
+                self.push_inline_style(self.styles.link);
+                self.push_link(dest_url.to_string());
+            }
             Tag::HtmlBlock
             | Tag::FootnoteDefinition(_)
             | Tag::Table(_)
@@ -208,7 +211,10 @@ where
                 self.pending_marker_line = false;
             }
             TagEnd::Emphasis | TagEnd::Strong | TagEnd::Strikethrough => self.pop_inline_style(),
-            TagEnd::Link => self.pop_link(),
+            TagEnd::Link => {
+                self.pop_inline_style();
+                self.pop_link();
+            }
             TagEnd::HtmlBlock
             | TagEnd::FootnoteDefinition
             | TagEnd::Table
@@ -545,6 +551,9 @@ mod markdown_render_tests {
 mod tests {
     use super::*;
     use pretty_assertions::assert_eq;
+    use ratatui::style::Color;
+    use ratatui::style::Modifier;
+    use ratatui::style::Style;
     use ratatui::text::Text;
 
     fn lines_to_strings(text: &Text<'_>) -> Vec<String> {
@@ -673,6 +682,28 @@ mod tests {
         assert_eq!(
             lines,
             vec!["fn main() { println!(\"hi from a long line\"); }".to_string(),]
+        );
+    }
+
+    #[test]
+    fn styles_inline_code_spans() {
+        let markdown = "Use `MyClass` here";
+        let rendered = render_markdown_text(markdown);
+        let mut code_style = None;
+
+        for line in &rendered.lines {
+            for span in &line.spans {
+                if span.content == "MyClass" {
+                    code_style = Some(span.style);
+                    break;
+                }
+            }
+        }
+
+        let expected = Style::new().fg(Color::Yellow).add_modifier(Modifier::BOLD);
+        assert_eq!(
+            code_style.expect("expected inline code span style"),
+            expected
         );
     }
 }

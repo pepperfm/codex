@@ -41,17 +41,17 @@ fn headings() {
     let md = "# Heading 1\n## Heading 2\n### Heading 3\n#### Heading 4\n##### Heading 5\n###### Heading 6\n";
     let text = render_markdown_text(md);
     let expected = Text::from_iter([
-        Line::from_iter(["# ".bold().underlined(), "Heading 1".bold().underlined()]),
+        Line::from_iter(["# ".cyan().bold(), "Heading 1".cyan().bold()]),
         Line::default(),
-        Line::from_iter(["## ".bold(), "Heading 2".bold()]),
+        Line::from_iter(["## ".cyan().bold(), "Heading 2".cyan().bold()]),
         Line::default(),
-        Line::from_iter(["### ".bold().italic(), "Heading 3".bold().italic()]),
+        Line::from_iter(["### ".cyan().bold(), "Heading 3".cyan().bold()]),
         Line::default(),
-        Line::from_iter(["#### ".italic(), "Heading 4".italic()]),
+        Line::from_iter(["#### ".cyan().bold(), "Heading 4".cyan().bold()]),
         Line::default(),
-        Line::from_iter(["##### ".italic(), "Heading 5".italic()]),
+        Line::from_iter(["##### ".cyan().bold(), "Heading 5".cyan().bold()]),
         Line::default(),
-        Line::from_iter(["###### ".italic(), "Heading 6".italic()]),
+        Line::from_iter(["###### ".cyan().bold(), "Heading 6".cyan().bold()]),
     ]);
     assert_eq!(text, expected);
 }
@@ -368,8 +368,8 @@ fn blockquote_heading_inherits_heading_style() {
         [
             Line::from_iter([
                 "> ".into(),
-                "# ".bold().underlined(),
-                "test header".bold().underlined(),
+                "# ".cyan().bold(),
+                "test header".cyan().bold(),
             ])
             .green(),
             Line::from_iter(["> "]).green(),
@@ -601,7 +601,7 @@ fn ordered_item_with_indented_continuation_is_tight() {
 #[test]
 fn inline_code() {
     let text = render_markdown_text("Example of `Inline code`");
-    let expected = Line::from_iter(["Example of ".into(), "Inline code".cyan()]).into();
+    let expected = Line::from_iter(["Example of ".into(), "Inline code".yellow().bold()]).into();
     assert_eq!(text, expected);
 }
 
@@ -643,9 +643,9 @@ fn strong_emphasis() {
 fn link() {
     let text = render_markdown_text("[Link](https://example.com)");
     let expected = Text::from(Line::from_iter([
-        "Link".into(),
+        "Link".blue().underlined(),
         " (".into(),
-        "https://example.com".cyan().underlined(),
+        "https://example.com".blue().underlined(),
         ")".into(),
     ]));
     assert_eq!(text, expected);
