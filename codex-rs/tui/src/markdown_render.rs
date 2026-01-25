@@ -42,12 +42,20 @@ impl Default for MarkdownStyles {
             h4: Style::new().cyan().bold(),
             h5: Style::new().cyan().bold(),
             h6: Style::new().cyan().bold(),
+            // Самый полезный акцент: inline-code — основной “якорь”
             code: Style::new().cyan().bold(),
+
+            // Курсив/жирный — как ты и хочешь использовать в policy
             emphasis: Style::new().italic(),
             strong: Style::new().bold(),
+
             strikethrough: Style::new().crossed_out(),
-            ordered_list_marker: Style::new().light_blue(),
-            unordered_list_marker: Style::new(),
+
+            // Маркеры списков — делаем заметными, чтобы списки “читались”
+            ordered_list_marker: Style::new().light_blue().bold(),
+            unordered_list_marker: Style::new().light_blue().bold(),
+
+            // Ссылки и callouts
             link: Style::new().blue().underlined(),
             blockquote: Style::new().green(),
         }
