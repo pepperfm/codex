@@ -2710,13 +2710,11 @@ impl ChatWidget {
             SlashCommand::Model => {
                 self.open_model_popup();
             }
-<<<<<<< HEAD
             SlashCommand::Personality => {
                 self.open_personality_popup();
-=======
+            }
             SlashCommand::Mode => {
                 self.open_mode_popup();
->>>>>>> 3ea780cc2 (add custom command)
             }
             SlashCommand::Collab => {
                 if self.collaboration_modes_enabled() {
