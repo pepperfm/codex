@@ -111,6 +111,33 @@ fn invalid_value(candidate: impl Into<String>, allowed: impl Into<String>) -> Co
     }
 }
 
+#[test]
+fn apply_mode_prefix_adds_prefix_and_shifts_elements() {
+    let elements = vec![TextElement::new((0..5).into(), None)];
+    let (text, elements) = apply_mode_prefix(ModePreset::Soft, "hello".to_string(), elements);
+
+    assert_eq!(text, "^soft hello");
+    assert_eq!(elements, vec![TextElement::new((6..11).into(), None)]);
+}
+
+#[test]
+fn apply_mode_prefix_skips_when_manual_prefix_is_present() {
+    let (text, elements) =
+        apply_mode_prefix(ModePreset::Strict, "  ^base hello".to_string(), Vec::new());
+
+    assert_eq!(text, "  ^base hello");
+    assert_eq!(elements, Vec::new());
+}
+
+#[test]
+fn normalize_manual_prefix_inserts_newline_after_prefix() {
+    let (text, elements) =
+        normalize_manual_prefix_newline("  ^strict hello".to_string(), Vec::new());
+
+    assert_eq!(text, "  ^strict\nhello");
+    assert_eq!(elements, Vec::new());
+}
+
 fn snapshot(percent: f64) -> RateLimitSnapshot {
     RateLimitSnapshot {
         primary: Some(RateLimitWindow {
@@ -791,6 +818,7 @@ async fn make_chatwidget_manual(
         active_cell_revision: 0,
         config: cfg,
         current_collaboration_mode,
+        current_mode: ModePreset::default(),
         active_collaboration_mask: None,
         auth_manager,
         models_manager,

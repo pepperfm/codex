@@ -76,6 +76,7 @@ pub mod live_wrap;
 mod markdown;
 mod markdown_render;
 mod markdown_stream;
+mod mode_preset;
 mod model_migration;
 mod notifications;
 pub mod onboarding;
