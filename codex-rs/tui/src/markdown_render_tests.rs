@@ -616,7 +616,7 @@ fn ordered_item_with_indented_continuation_is_tight() {
 #[test]
 fn inline_code() {
     let text = render_markdown_text("Example of `Inline code`");
-    let expected = Line::from_iter(["Example of ".into(), "Inline code".yellow().bold()]).into();
+    let expected = Line::from_iter(["Example of ".into(), "Inline code".cyan().bold()]).into();
     assert_eq!(text, expected);
 }
 
