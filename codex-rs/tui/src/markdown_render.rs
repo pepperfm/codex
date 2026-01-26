@@ -48,7 +48,7 @@ impl Default for MarkdownStyles {
 
             // Курсив/жирный — как ты и хочешь использовать в policy
             emphasis: Style::new().italic(),
-            strong: Style::new().magenta().bold(),
+            strong: Style::new().bold(),
 
             strikethrough: Style::new().crossed_out(),
 

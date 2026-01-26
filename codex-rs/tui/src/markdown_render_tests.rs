@@ -382,7 +382,7 @@ fn blockquote_heading_inherits_heading_style() {
         text.lines,
         [
             Line::from_iter(["> ".into(), "# ".dark_gray().bold(), "test header".dark_gray().bold()])
-            .green(),
+                .green(),
             Line::from_iter(["> "]).green(),
             Line::from_iter(["> ", "in blockquote"]).green(),
         ]
@@ -620,7 +620,7 @@ fn inline_code() {
 fn strong() {
     assert_eq!(
         render_markdown_text("**Strong**"),
-        Text::from(Line::from("Strong".magenta().bold()))
+        Text::from(Line::from("Strong".bold()))
     );
 }
 
@@ -644,8 +644,8 @@ fn strikethrough() {
 fn strong_emphasis() {
     let text = render_markdown_text("**Strong *emphasis***");
     let expected = Text::from(Line::from_iter([
-        "Strong ".magenta().bold(),
-        "emphasis".magenta().bold().italic(),
+        "Strong ".bold(),
+        "emphasis".bold().italic(),
     ]));
     assert_eq!(text, expected);
 }
