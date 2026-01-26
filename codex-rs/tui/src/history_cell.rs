@@ -219,8 +219,9 @@ fn build_user_message_lines_with_elements(
         {
             spans.push(Span::from(segment.to_string()));
         }
+        let spans = apply_prefix_style_to_spans(line_text, spans);
         let line = if spans.is_empty() {
-            Line::from(line_text.to_string()).style(style)
+            build_user_message_line(line_text, style)
         } else {
             Line::from(spans).style(style)
         };
@@ -231,6 +232,77 @@ fn build_user_message_lines_with_elements(
     }
 
     raw_lines
+}
+
+fn manual_prefix_len(line: &str) -> Option<usize> {
+    ["^base", "^soft", "^strict", "^nuxt"]
+        .iter()
+        .find_map(|prefix| {
+            line.strip_prefix(prefix)
+                .and_then(|rest| (rest.is_empty() || rest.starts_with(' ')).then_some(prefix.len()))
+        })
+}
+
+fn build_user_message_line(line_text: &str, style: Style) -> Line<'static> {
+    let Some(prefix_len) = manual_prefix_len(line_text) else {
+        return Line::from(line_text.to_string()).style(style);
+    };
+
+    let (prefix, rest) = line_text.split_at(prefix_len);
+    let mut spans = vec![Span::styled(
+        prefix.to_string(),
+        Style::default().fg(Color::Magenta),
+    )];
+    if !rest.is_empty() {
+        spans.push(Span::from(rest.to_string()));
+    }
+    Line::from(spans).style(style)
+}
+
+fn apply_prefix_style_to_spans(line_text: &str, spans: Vec<Span<'static>>) -> Vec<Span<'static>> {
+    let Some(prefix_len) = manual_prefix_len(line_text) else {
+        return spans;
+    };
+    if spans.is_empty() {
+        let (prefix, rest) = line_text.split_at(prefix_len);
+        let mut out = vec![Span::styled(
+            prefix.to_string(),
+            Style::default().fg(Color::Magenta),
+        )];
+        if !rest.is_empty() {
+            out.push(Span::from(rest.to_string()));
+        }
+        return out;
+    }
+
+    let mut out = Vec::new();
+    let mut offset = 0usize;
+    for span in spans {
+        let style = span.style;
+        let content = span.content.into_owned();
+        let span_len = content.len();
+        let span_start = offset;
+        let span_end = offset + span_len;
+        if span_end <= prefix_len {
+            out.push(Span::styled(content, Style::default().fg(Color::Magenta)));
+        } else if span_start >= prefix_len {
+            out.push(Span::styled(content, style));
+        } else {
+            let split_at = prefix_len - span_start;
+            let (prefix_part, rest) = content.split_at(split_at);
+            if !prefix_part.is_empty() {
+                out.push(Span::styled(
+                    prefix_part.to_string(),
+                    Style::default().fg(Color::Magenta),
+                ));
+            }
+            if !rest.is_empty() {
+                out.push(Span::styled(rest.to_string(), style));
+            }
+        }
+        offset = span_end;
+    }
+    out
 }
 
 impl HistoryCell for UserHistoryCell {
@@ -248,7 +320,9 @@ impl HistoryCell for UserHistoryCell {
 
         let wrapped = if self.text_elements.is_empty() {
             word_wrap_lines(
-                self.message.split('\n').map(|l| Line::from(l).style(style)),
+                self.message
+                    .split('\n')
+                    .map(|line| build_user_message_line(line, style)),
                 // Wrap algorithm matches textarea.rs.
                 RtOptions::new(usize::from(wrap_width))
                     .wrap_algorithm(textwrap::WrapAlgorithm::FirstFit),
