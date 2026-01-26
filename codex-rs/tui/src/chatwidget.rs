@@ -28,6 +28,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use std::time::Instant;
 
+use crate::mode_preset::ModePreset;
 use crate::version::CODEX_CLI_VERSION;
 use codex_app_server_protocol::AuthMode;
 use codex_backend_client::Client as BackendClient;
@@ -98,7 +99,6 @@ use codex_protocol::approvals::ElicitationRequestEvent;
 use codex_protocol::config_types::CollaborationMode;
 use codex_protocol::config_types::CollaborationModeMask;
 use codex_protocol::config_types::ModeKind;
-use codex_protocol::config_types::Personality;
 use codex_protocol::config_types::Personality;
 use codex_protocol::config_types::Settings;
 #[cfg(target_os = "windows")]
@@ -174,7 +174,6 @@ use crate::history_cell::WebSearchCell;
 use crate::key_hint;
 use crate::key_hint::KeyBinding;
 use crate::markdown::append_markdown;
-use crate::mode_preset::ModePreset;
 use crate::render::Insets;
 use crate::render::renderable::ColumnRenderable;
 use crate::render::renderable::FlexRenderable;
@@ -442,9 +441,9 @@ pub(crate) struct ChatWidget {
     ///
     /// Masks are applied on top of this base mode to derive the effective mode.
     current_collaboration_mode: CollaborationMode,
-    current_mode: ModePreset,
     /// The currently active collaboration mask, if any.
     active_collaboration_mask: Option<CollaborationModeMask>,
+    current_mode: ModePreset,
     auth_manager: Arc<AuthManager>,
     models_manager: Arc<ModelsManager>,
     otel_manager: OtelManager,
@@ -625,9 +624,9 @@ const MANUAL_PREFIXES: [&str; 4] = ["^base", "^soft", "^strict", "^nuxt"];
 fn has_manual_prefix(text: &str) -> bool {
     let trimmed = text.trim_start();
     MANUAL_PREFIXES.iter().any(|prefix| {
-        trimmed
-            .strip_prefix(prefix)
-            .is_some_and(|rest| rest.is_empty() || rest.starts_with(' '))
+        trimmed.strip_prefix(prefix).is_some_and(|rest| {
+            rest.is_empty() || rest.chars().next().is_some_and(|ch| ch.is_whitespace())
+        })
     })
 }
 
@@ -675,6 +674,7 @@ fn normalize_manual_prefix_newline(
 
     (raw, text_elements)
 }
+
 fn apply_mode_prefix(
     mode: ModePreset,
     raw: String,
@@ -2141,8 +2141,8 @@ impl ChatWidget {
             skills_all: Vec::new(),
             skills_initial_state: None,
             current_collaboration_mode,
-            current_mode: ModePreset::default(),
             active_collaboration_mask,
+            current_mode: ModePreset::default(),
             auth_manager,
             models_manager,
             otel_manager,
@@ -2280,8 +2280,8 @@ impl ChatWidget {
             skills_all: Vec::new(),
             skills_initial_state: None,
             current_collaboration_mode,
-            current_mode: ModePreset::default(),
             active_collaboration_mask,
+            current_mode: ModePreset::default(),
             auth_manager,
             models_manager,
             otel_manager,
@@ -2408,8 +2408,8 @@ impl ChatWidget {
             skills_all: Vec::new(),
             skills_initial_state: None,
             current_collaboration_mode,
-            current_mode: ModePreset::default(),
             active_collaboration_mask,
+            current_mode: ModePreset::default(),
             auth_manager,
             models_manager,
             otel_manager,
@@ -3620,6 +3620,30 @@ impl ChatWidget {
         });
     }
 
+    /// Open a popup to choose a quick auto model. Selecting "All models"
+    /// opens the full picker with every available preset.
+    pub(crate) fn open_model_popup(&mut self) {
+        if !self.is_session_configured() {
+            self.add_info_message(
+                "Model selection is disabled until startup completes.".to_string(),
+                None,
+            );
+            return;
+        }
+
+        let presets: Vec<ModelPreset> = match self.models_manager.try_list_models(&self.config) {
+            Ok(models) => models,
+            Err(_) => {
+                self.add_info_message(
+                    "Models are being updated; please try /model again in a moment.".to_string(),
+                    None,
+                );
+                return;
+            }
+        };
+        self.open_model_popup_with_presets(presets);
+    }
+
     /// Open a popup to choose a sticky prompt mode preset.
     pub(crate) fn open_mode_popup(&mut self) {
         let current_mode = self.current_mode;
@@ -3647,30 +3671,6 @@ impl ChatWidget {
             items,
             ..Default::default()
         });
-    }
-
-    /// Open a popup to choose a quick auto model. Selecting "All models"
-    /// opens the full picker with every available preset.
-    pub(crate) fn open_model_popup(&mut self) {
-        if !self.is_session_configured() {
-            self.add_info_message(
-                "Model selection is disabled until startup completes.".to_string(),
-                None,
-            );
-            return;
-        }
-
-        let presets: Vec<ModelPreset> = match self.models_manager.try_list_models(&self.config) {
-            Ok(models) => models,
-            Err(_) => {
-                self.add_info_message(
-                    "Models are being updated; please try /model again in a moment.".to_string(),
-                    None,
-                );
-                return;
-            }
-        };
-        self.open_model_popup_with_presets(presets);
     }
 
     pub(crate) fn open_personality_popup(&mut self) {
@@ -4999,6 +4999,12 @@ impl ChatWidget {
         self.config.model_personality = Some(personality);
     }
 
+    pub(crate) fn set_prompt_mode(&mut self, mode: ModePreset) {
+        self.current_mode = mode;
+        let label = mode.label();
+        self.add_info_message(format!("Mode set: {label}"), None);
+    }
+
     /// Set the model in the widget's config copy and stored collaboration mode.
     pub(crate) fn set_model(&mut self, model: &str) {
         self.current_collaboration_mode =
@@ -5010,18 +5016,6 @@ impl ChatWidget {
             mask.model = Some(model.to_string());
         }
         self.refresh_model_display();
-    }
-
-    pub(crate) fn set_prompt_mode(&mut self, mode: ModePreset) {
-        self.current_mode = mode;
-        let label = mode.label();
-        self.add_info_message(format!("Mode set: {label}"), None);
-    }
-
-    pub(crate) fn set_prompt_mode(&mut self, mode: ModePreset) {
-        self.current_mode = mode;
-        let label = mode.label();
-        self.add_info_message(format!("Mode set: {label}"), None);
     }
 
     pub(crate) fn current_model(&self) -> &str {
@@ -5166,212 +5160,6 @@ impl ChatWidget {
     fn update_collaboration_mode_indicator(&mut self) {
         let indicator = self.collaboration_mode_indicator();
         self.bottom_pane.set_collaboration_mode_indicator(indicator);
-    }
-
-    fn personality_label(personality: Personality) -> &'static str {
-        match personality {
-            Personality::Friendly => "Friendly",
-            Personality::Pragmatic => "Pragmatic",
-        }
-    }
-
-    fn personality_description(personality: Personality) -> &'static str {
-        match personality {
-            Personality::Friendly => "Warm, collaborative, and helpful.",
-            Personality::Pragmatic => "Concise, task-focused, and direct.",
-        }
-use codex_protocol::user_input::ByteRange;
-use crate::mode_preset::ModePreset;
-    current_mode: ModePreset,
-fn has_manual_prefix(text: &str) -> bool {
-    let trimmed = text.trim_start();
-    ["^base", "^soft", "^strict", "^nuxt"].iter().any(|prefix| {
-        trimmed
-            .strip_prefix(prefix)
-            .is_some_and(|rest| rest.is_empty() || rest.starts_with(' '))
-    })
-}
-
-fn apply_mode_prefix(
-    mode: ModePreset,
-    raw: String,
-    text_elements: Vec<TextElement>,
-) -> (String, Vec<TextElement>) {
-    if raw.is_empty() || has_manual_prefix(&raw) {
-        return (raw, text_elements);
-    }
-
-    let prefix = mode.prefix();
-    if prefix.is_empty() {
-        return (raw, text_elements);
-    }
-
-    let offset = prefix.len();
-    let text_elements = text_elements
-        .into_iter()
-        .map(|elem| {
-            elem.map_range(|range| ByteRange {
-                start: range.start.saturating_add(offset),
-                end: range.end.saturating_add(offset),
-            })
-        })
-        .collect();
-
-    (format!("{prefix}{raw}"), text_elements)
-}
-
-        self.sync_personality_command_enabled();
-            current_mode: ModePreset::default(),
-        widget.sync_personality_command_enabled();
-            current_mode: ModePreset::default(),
-        widget.sync_personality_command_enabled();
-            current_mode: ModePreset::default(),
-        widget.sync_personality_command_enabled();
-            SlashCommand::Mode => {
-                self.open_mode_popup();
-            }
-            SlashCommand::Personality => {
-                self.open_personality_popup();
-            }
-        let (text, text_elements) = apply_mode_prefix(self.current_mode, text, text_elements);
-
-        let personality = self
-            .config
-            .model_personality
-            .filter(|_| self.current_model_supports_personality());
-            personality,
-            | EventMsg::ReasoningRawContentDelta(_)
-            | EventMsg::DynamicToolCallRequest(_) => {}
-    /// Open a popup to choose a sticky prompt mode preset.
-    pub(crate) fn open_mode_popup(&mut self) {
-        let current_mode = self.current_mode;
-        let items: Vec<SelectionItem> = ModePreset::all()
-            .into_iter()
-            .map(|mode| {
-                let actions: Vec<SelectionAction> = vec![Box::new(move |tx| {
-                    tx.send(AppEvent::UpdatePromptMode(mode));
-                })];
-                SelectionItem {
-                    name: mode.label().to_string(),
-                    description: Some(mode.description().to_string()),
-                    is_current: mode == current_mode,
-                    actions,
-                    dismiss_on_select: true,
-                    ..Default::default()
-                }
-            })
-            .collect();
-
-        self.bottom_pane.show_selection_view(SelectionViewParams {
-            title: Some("Select Mode".to_string()),
-            subtitle: Some("Pick a sticky prompt mode.".to_string()),
-            footer_hint: Some(standard_popup_hint_line()),
-            items,
-            ..Default::default()
-        });
-    }
-
-    pub(crate) fn open_personality_popup(&mut self) {
-        if !self.is_session_configured() {
-            self.add_info_message(
-                "Personality selection is disabled until startup completes.".to_string(),
-                None,
-            );
-            return;
-        }
-        self.open_personality_popup_for_current_model();
-    }
-
-    fn open_personality_popup_for_current_model(&mut self) {
-        let current_model = self.current_model();
-        let current_personality = self.config.model_personality;
-        let personalities = [Personality::Friendly, Personality::Pragmatic];
-        let supports_personality = self.current_model_supports_personality();
-        let disabled_message = (!supports_personality).then(|| {
-            format!(
-                "Current model ({current_model}) doesn't support personalities. Try /model to switch to a newer model."
-            )
-        });
-
-        let items: Vec<SelectionItem> = personalities
-            .into_iter()
-            .map(|personality| {
-                let name = Self::personality_label(personality).to_string();
-                let description = Some(Self::personality_description(personality).to_string());
-                let actions: Vec<SelectionAction> = vec![Box::new(move |tx| {
-                    tx.send(AppEvent::CodexOp(Op::OverrideTurnContext {
-                        cwd: None,
-                        approval_policy: None,
-                        sandbox_policy: None,
-                        model: None,
-                        effort: None,
-                        summary: None,
-                        collaboration_mode: None,
-                        personality: Some(personality),
-                    }));
-                    tx.send(AppEvent::UpdatePersonality(personality));
-                    tx.send(AppEvent::PersistPersonalitySelection { personality });
-                })];
-                SelectionItem {
-                    name,
-                    description,
-                    is_current: current_personality == Some(personality),
-                    is_disabled: !supports_personality,
-                    actions,
-                    dismiss_on_select: true,
-                    ..Default::default()
-                }
-            })
-            .collect();
-
-        let mut header = ColumnRenderable::new();
-        header.push(Line::from("Select Personality".bold()));
-        header.push(Line::from(
-            "Choose a communication style for future responses.".dim(),
-        ));
-        if let Some(message) = disabled_message {
-            header.push(Line::from(message.red()));
-        }
-
-        self.bottom_pane.show_selection_view(SelectionViewParams {
-            header: Box::new(header),
-            footer_hint: Some(standard_popup_hint_line()),
-            items,
-            ..Default::default()
-        });
-    }
-
-    /// Set the personality in the widget's config copy.
-    pub(crate) fn set_personality(&mut self, personality: Personality) {
-        self.config.model_personality = Some(personality);
-    }
-
-        self.sync_personality_command_enabled();
-    pub(crate) fn set_prompt_mode(&mut self, mode: ModePreset) {
-        self.current_mode = mode;
-        let label = mode.label();
-        self.add_info_message(format!("Mode set: {label}"), None);
-    }
-
-    fn sync_personality_command_enabled(&mut self) {
-        self.bottom_pane
-            .set_personality_command_enabled(self.current_model_supports_personality());
-    }
-
-    fn current_model_supports_personality(&self) -> bool {
-        let model = self.current_model();
-        self.models_manager
-            .try_list_models(&self.config)
-            .ok()
-            .and_then(|models| {
-                models
-                    .into_iter()
-                    .find(|preset| preset.model == model)
-                    .map(|preset| preset.supports_personality)
-            })
-            .unwrap_or(false)
-    }
-
     }
 
     fn personality_label(personality: Personality) -> &'static str {
