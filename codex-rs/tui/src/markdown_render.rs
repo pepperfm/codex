@@ -44,7 +44,7 @@ impl Default for MarkdownStyles {
             h6: Style::new().cyan().bold(),
 
             // Самый полезный акцент: inline-code — основной “якорь”
-            code: Style::new().yellow().bold(),
+            code: Style::new().cyan().bold(),
 
             // Курсив/жирный — как ты и хочешь использовать в policy
             emphasis: Style::new().italic(),
@@ -709,7 +709,7 @@ mod tests {
             }
         }
 
-        let expected = Style::new().fg(Color::Yellow).add_modifier(Modifier::BOLD);
+        let expected = Style::new().fg(Color::Cyan).add_modifier(Modifier::BOLD);
         assert_eq!(
             code_style.expect("expected inline code span style"),
             expected
