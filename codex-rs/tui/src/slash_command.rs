@@ -21,6 +21,7 @@ pub enum SlashCommand {
     ElevateSandbox,
     Experimental,
     Skills,
+    SessionSkills,
     Review,
     New,
     Resume,
@@ -59,6 +60,7 @@ impl SlashCommand {
             SlashCommand::Diff => "show git diff (including untracked files)",
             SlashCommand::Mention => "mention a file",
             SlashCommand::Skills => "use skills to improve how Codex performs specific tasks",
+            SlashCommand::SessionSkills => "toggle skills for the rest of this session",
             SlashCommand::Status => "show current session configuration and token usage",
             SlashCommand::Ps => "list background terminals",
             SlashCommand::Model => "choose what model and reasoning effort to use",
@@ -103,6 +105,7 @@ impl SlashCommand {
             SlashCommand::Diff
             | SlashCommand::Mention
             | SlashCommand::Skills
+            | SlashCommand::SessionSkills
             | SlashCommand::Status
             | SlashCommand::Ps
             | SlashCommand::Mcp

@@ -1999,6 +1999,9 @@ impl App {
             AppEvent::OpenManageSkillsPopup => {
                 self.chat_widget.open_manage_skills_popup();
             }
+            AppEvent::OpenManageSessionSkillsPopup => {
+                self.chat_widget.open_manage_session_skills_popup();
+            }
             AppEvent::SetSkillEnabled { path, enabled } => {
                 let edits = [ConfigEdit::SetSkillConfig {
                     path: path.clone(),
@@ -2019,6 +2022,16 @@ impl App {
                         ));
                     }
                 }
+            }
+            AppEvent::SetSessionSkillEnabled {
+                skill_name,
+                enabled,
+            } => {
+                self.chat_widget
+                    .set_session_skill_enabled(skill_name, enabled);
+            }
+            AppEvent::ResetSessionSkills => {
+                self.chat_widget.reset_session_skills();
             }
             AppEvent::OpenPermissionsPopup => {
                 self.chat_widget.open_permissions_popup();
@@ -2041,6 +2054,9 @@ impl App {
             }
             AppEvent::ManageSkillsClosed => {
                 self.chat_widget.handle_manage_skills_closed();
+            }
+            AppEvent::ManageSessionSkillsClosed => {
+                self.chat_widget.handle_manage_session_skills_closed();
             }
             AppEvent::FullScreenApprovalRequest(request) => match request {
                 ApprovalRequest::ApplyPatch { cwd, changes, .. } => {

@@ -186,6 +186,7 @@ pub(crate) use self::agent::spawn_op_forwarder;
 mod session_header;
 use self::session_header::SessionHeader;
 mod skills;
+use self::skills::enabled_skills_for_mentions;
 use self::skills::find_skill_mentions;
 use crate::streaming::controller::StreamController;
 use std::path::Path;
@@ -425,6 +426,7 @@ pub(crate) struct ChatWidget {
     current_collaboration_mode: CollaborationMode,
     /// The currently active collaboration mask, if any.
     active_collaboration_mask: Option<CollaborationModeMask>,
+    session_skill_overrides: HashSet<String>,
     current_mode: ModePreset,
     auth_manager: Arc<AuthManager>,
     models_manager: Arc<ModelsManager>,
@@ -2060,6 +2062,7 @@ impl ChatWidget {
             skills_initial_state: None,
             current_collaboration_mode,
             active_collaboration_mask,
+            session_skill_overrides: HashSet::new(),
             current_mode: ModePreset::default(),
             auth_manager,
             models_manager,
@@ -2186,6 +2189,7 @@ impl ChatWidget {
             skills_initial_state: None,
             current_collaboration_mode,
             active_collaboration_mask,
+            session_skill_overrides: HashSet::new(),
             current_mode: ModePreset::default(),
             auth_manager,
             models_manager,
@@ -2313,6 +2317,7 @@ impl ChatWidget {
             skills_initial_state: None,
             current_collaboration_mode,
             active_collaboration_mask,
+            session_skill_overrides: HashSet::new(),
             current_mode: ModePreset::default(),
             auth_manager,
             models_manager,
@@ -2708,6 +2713,9 @@ impl ChatWidget {
             SlashCommand::Skills => {
                 self.open_skills_menu();
             }
+            SlashCommand::SessionSkills => {
+                self.open_session_skills_menu();
+            }
             SlashCommand::Status => {
                 self.add_status_output();
             }
@@ -2916,9 +2924,29 @@ impl ChatWidget {
             });
         }
 
-        if let Some(skills) = self.bottom_pane.skills() {
-            let skill_mentions = find_skill_mentions(&text, skills);
-            for skill in skill_mentions {
+        let enabled_skills = self
+            .bottom_pane
+            .skills()
+            .cloned()
+            .unwrap_or_else(|| enabled_skills_for_mentions(&self.skills_all));
+        let mut skills_by_name = HashMap::new();
+        for skill in &enabled_skills {
+            skills_by_name.insert(skill.name.clone(), skill.clone());
+        }
+        let mut seen_skills = HashSet::new();
+        for skill_name in &self.session_skill_overrides {
+            let Some(skill) = skills_by_name.get(skill_name) else {
+                continue;
+            };
+            if seen_skills.insert(skill.name.clone()) {
+                items.push(UserInput::Skill {
+                    name: skill.name.clone(),
+                    path: skill.path.clone(),
+                });
+            }
+        }
+        for skill in find_skill_mentions(&text, &enabled_skills) {
+            if seen_skills.insert(skill.name.clone()) {
                 items.push(UserInput::Skill {
                     name: skill.name.clone(),
                     path: skill.path.clone(),
@@ -4819,6 +4847,16 @@ impl ChatWidget {
     /// Set the personality in the widget's config copy.
     pub(crate) fn set_personality(&mut self, personality: Personality) {
         self.config.model_personality = Some(personality);
+    }
+
+    fn prune_session_skill_overrides(&mut self) {
+        if self.session_skill_overrides.is_empty() {
+            return;
+        }
+        let enabled = enabled_skills_for_mentions(&self.skills_all);
+        let enabled_names: HashSet<String> = enabled.into_iter().map(|skill| skill.name).collect();
+        self.session_skill_overrides
+            .retain(|name| enabled_names.contains(name));
     }
 
     pub(crate) fn set_prompt_mode(&mut self, mode: ModePreset) {

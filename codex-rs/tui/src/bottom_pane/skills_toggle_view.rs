@@ -47,10 +47,17 @@ pub(crate) struct SkillsToggleView {
     state: ScrollState,
     complete: bool,
     app_event_tx: AppEventSender,
+    mode: SkillsToggleMode,
     header: Box<dyn Renderable>,
     footer_hint: Line<'static>,
     search_query: String,
     filtered_indices: Vec<usize>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum SkillsToggleMode {
+    Global,
+    Session,
 }
 
 impl SkillsToggleView {
@@ -66,6 +73,29 @@ impl SkillsToggleView {
             state: ScrollState::new(),
             complete: false,
             app_event_tx,
+            mode: SkillsToggleMode::Global,
+            header: Box::new(header),
+            footer_hint: skills_toggle_hint_line(),
+            search_query: String::new(),
+            filtered_indices: Vec::new(),
+        };
+        view.apply_filter();
+        view
+    }
+
+    pub(crate) fn new_session(items: Vec<SkillsToggleItem>, app_event_tx: AppEventSender) -> Self {
+        let mut header = ColumnRenderable::new();
+        header.push(Line::from("Session Skills".bold()));
+        header.push(Line::from(
+            "Apply skills to all messages in this session.".dim(),
+        ));
+
+        let mut view = Self {
+            items,
+            state: ScrollState::new(),
+            complete: false,
+            app_event_tx,
+            mode: SkillsToggleMode::Session,
             header: Box::new(header),
             footer_hint: skills_toggle_hint_line(),
             search_query: String::new(),
@@ -175,10 +205,20 @@ impl SkillsToggleView {
         };
 
         item.enabled = !item.enabled;
-        self.app_event_tx.send(AppEvent::SetSkillEnabled {
-            path: item.path.clone(),
-            enabled: item.enabled,
-        });
+        match self.mode {
+            SkillsToggleMode::Global => {
+                self.app_event_tx.send(AppEvent::SetSkillEnabled {
+                    path: item.path.clone(),
+                    enabled: item.enabled,
+                });
+            }
+            SkillsToggleMode::Session => {
+                self.app_event_tx.send(AppEvent::SetSessionSkillEnabled {
+                    skill_name: item.skill_name.clone(),
+                    enabled: item.enabled,
+                });
+            }
+        }
     }
 
     fn close(&mut self) {
@@ -186,11 +226,18 @@ impl SkillsToggleView {
             return;
         }
         self.complete = true;
-        self.app_event_tx.send(AppEvent::ManageSkillsClosed);
-        self.app_event_tx.send(AppEvent::CodexOp(Op::ListSkills {
-            cwds: Vec::new(),
-            force_reload: true,
-        }));
+        match self.mode {
+            SkillsToggleMode::Global => {
+                self.app_event_tx.send(AppEvent::ManageSkillsClosed);
+                self.app_event_tx.send(AppEvent::CodexOp(Op::ListSkills {
+                    cwds: Vec::new(),
+                    force_reload: true,
+                }));
+            }
+            SkillsToggleMode::Session => {
+                self.app_event_tx.send(AppEvent::ManageSessionSkillsClosed);
+            }
+        }
     }
 
     fn rows_width(total_width: u16) -> u16 {

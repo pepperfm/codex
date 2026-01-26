@@ -39,6 +39,7 @@ use codex_core::protocol::ExecCommandSource;
 use codex_core::protocol::ExecPolicyAmendment;
 use codex_core::protocol::ExitedReviewModeEvent;
 use codex_core::protocol::FileChange;
+use codex_core::protocol::ListSkillsResponseEvent;
 use codex_core::protocol::McpStartupCompleteEvent;
 use codex_core::protocol::McpStartupStatus;
 use codex_core::protocol::McpStartupUpdateEvent;
@@ -49,6 +50,8 @@ use codex_core::protocol::RateLimitWindow;
 use codex_core::protocol::ReviewRequest;
 use codex_core::protocol::ReviewTarget;
 use codex_core::protocol::SessionSource;
+use codex_core::protocol::SkillMetadata as ProtocolSkillMetadata;
+use codex_core::protocol::SkillsListEntry;
 use codex_core::protocol::StreamErrorEvent;
 use codex_core::protocol::TerminalInteractionEvent;
 use codex_core::protocol::TokenCountEvent;
@@ -74,6 +77,7 @@ use codex_protocol::plan_tool::PlanItemArg;
 use codex_protocol::plan_tool::StepStatus;
 use codex_protocol::plan_tool::UpdatePlanArgs;
 use codex_protocol::protocol::CodexErrorInfo;
+use codex_protocol::protocol::SkillScope;
 use codex_protocol::user_input::TextElement;
 use codex_protocol::user_input::UserInput;
 use codex_utils_absolute_path::AbsolutePathBuf;
@@ -147,6 +151,83 @@ fn normalize_manual_prefix_inserts_newline_after_prefix() {
     assert_eq!(text, "  ^strict\nhello");
     assert_eq!(elements, Vec::new());
 }
+
+#[tokio::test]
+async fn session_skills_apply_to_messages() {
+    let (mut chat, mut rx, mut op_rx) = make_chatwidget_manual(None).await;
+
+    let conversation_id = ThreadId::new();
+    let rollout_file = NamedTempFile::new().unwrap();
+    let configured = codex_core::protocol::SessionConfiguredEvent {
+        session_id: conversation_id,
+        forked_from_id: None,
+        model: "test-model".to_string(),
+        model_provider_id: "test-provider".to_string(),
+        approval_policy: AskForApproval::Never,
+        sandbox_policy: SandboxPolicy::ReadOnly,
+        cwd: chat.config.cwd.clone(),
+        reasoning_effort: Some(ReasoningEffortConfig::default()),
+        history_log_id: 0,
+        history_entry_count: 0,
+        initial_messages: None,
+        rollout_path: Some(rollout_file.path().to_path_buf()),
+    };
+    chat.handle_codex_event(Event {
+        id: "initial".into(),
+        msg: EventMsg::SessionConfigured(configured),
+    });
+    drain_insert_history(&mut rx);
+
+    let skill = ProtocolSkillMetadata {
+        name: "alpha".to_string(),
+        description: "Alpha skill".to_string(),
+        short_description: None,
+        interface: None,
+        path: PathBuf::from("/tmp/alpha.toml"),
+        scope: SkillScope::Repo,
+        enabled: true,
+    };
+    let response = ListSkillsResponseEvent {
+        skills: vec![SkillsListEntry {
+            cwd: chat.config.cwd.clone(),
+            skills: vec![skill.clone()],
+            errors: Vec::new(),
+        }],
+    };
+    chat.set_skills_from_response(&response);
+
+    chat.set_session_skill_enabled("alpha".to_string(), true);
+    chat.submit_user_message(UserMessage {
+        text: "hello".to_string(),
+        text_elements: Vec::new(),
+        local_images: Vec::new(),
+    });
+
+    let op = loop {
+        let op = op_rx.recv().await.expect("expected a user turn");
+        if matches!(op, Op::UserTurn { .. }) {
+            break op;
+        }
+    };
+    let Op::UserTurn { items, .. } = op else {
+        unreachable!("expected Op::UserTurn");
+    };
+
+    assert_eq!(
+        items,
+        vec![
+            UserInput::Text {
+                text: "hello".to_string(),
+                text_elements: Vec::new(),
+            },
+            UserInput::Skill {
+                name: "alpha".to_string(),
+                path: skill.path,
+            },
+        ]
+    );
+}
+
 fn snapshot(percent: f64) -> RateLimitSnapshot {
     RateLimitSnapshot {
         primary: Some(RateLimitWindow {
@@ -825,6 +906,7 @@ async fn make_chatwidget_manual(
         current_collaboration_mode,
         current_mode: ModePreset::default(),
         active_collaboration_mask: None,
+        session_skill_overrides: HashSet::new(),
         auth_manager,
         models_manager,
         otel_manager,

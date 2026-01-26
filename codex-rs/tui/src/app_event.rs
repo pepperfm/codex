@@ -230,14 +230,29 @@ pub(crate) enum AppEvent {
     /// Open the skills enable/disable picker.
     OpenManageSkillsPopup,
 
+    /// Open the session skills enable/disable picker.
+    OpenManageSessionSkillsPopup,
+
     /// Enable or disable a skill by path.
     SetSkillEnabled {
         path: PathBuf,
         enabled: bool,
     },
 
+    /// Enable or disable a session skill by name.
+    SetSessionSkillEnabled {
+        skill_name: String,
+        enabled: bool,
+    },
+
+    /// Clear session skills.
+    ResetSessionSkills,
+
     /// Notify that the manage skills popup was closed.
     ManageSkillsClosed,
+
+    /// Notify that the manage session skills popup was closed.
+    ManageSessionSkillsClosed,
 
     /// Re-open the permissions presets popup.
     OpenPermissionsPopup,
