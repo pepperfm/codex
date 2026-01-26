@@ -652,7 +652,6 @@ fn normalize_manual_prefix_newline(
 
     (raw, text_elements)
 }
-
 fn apply_mode_prefix(
     mode: ModePreset,
     raw: String,
@@ -4834,6 +4833,12 @@ impl ChatWidget {
         }
         self.refresh_model_display();
         self.sync_personality_command_enabled();
+    }
+
+    pub(crate) fn set_prompt_mode(&mut self, mode: ModePreset) {
+        self.current_mode = mode;
+        let label = mode.label();
+        self.add_info_message(format!("Mode set: {label}"), None);
     }
 
     pub(crate) fn set_prompt_mode(&mut self, mode: ModePreset) {

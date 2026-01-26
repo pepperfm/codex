@@ -110,10 +110,8 @@ pub(crate) enum AppEvent {
 
     /// Update the sticky prompt mode preset in the running app and widget.
     UpdatePromptMode(ModePreset),
-
     /// Update the current personality in the running app and widget.
     UpdatePersonality(Personality),
-
     /// Persist the selected model and reasoning effort to the appropriate config.
     PersistModelSelection {
         model: String,

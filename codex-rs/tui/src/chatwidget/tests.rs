@@ -147,7 +147,6 @@ fn normalize_manual_prefix_inserts_newline_after_prefix() {
     assert_eq!(text, "  ^strict\nhello");
     assert_eq!(elements, Vec::new());
 }
-
 fn snapshot(percent: f64) -> RateLimitSnapshot {
     RateLimitSnapshot {
         primary: Some(RateLimitWindow {
