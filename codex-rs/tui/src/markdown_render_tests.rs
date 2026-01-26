@@ -620,7 +620,7 @@ fn inline_code() {
 fn strong() {
     assert_eq!(
         render_markdown_text("**Strong**"),
-        Text::from(Line::from("Strong".bold()))
+        Text::from(Line::from("Strong".magenta().bold()))
     );
 }
 
@@ -644,8 +644,8 @@ fn strikethrough() {
 fn strong_emphasis() {
     let text = render_markdown_text("**Strong *emphasis***");
     let expected = Text::from(Line::from_iter([
-        "Strong ".bold(),
-        "emphasis".bold().italic(),
+        "Strong ".magenta().bold(),
+        "emphasis".magenta().bold().italic(),
     ]));
     assert_eq!(text, expected);
 }
