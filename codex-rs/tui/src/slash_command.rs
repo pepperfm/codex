@@ -13,6 +13,7 @@ pub enum SlashCommand {
     // DO NOT ALPHA-SORT! Enum order is presentation order in the popup, so
     // more frequently used commands should be listed first.
     Model,
+    Mode,
     Personality,
     Approvals,
     Permissions,
@@ -61,6 +62,7 @@ impl SlashCommand {
             SlashCommand::Status => "show current session configuration and token usage",
             SlashCommand::Ps => "list background terminals",
             SlashCommand::Model => "choose what model and reasoning effort to use",
+            SlashCommand::Mode => "switch prompt mode (base/soft/strict/nuxt)",
             SlashCommand::Personality => "choose a communication style for responses",
             SlashCommand::Collab => "change collaboration mode (experimental)",
             SlashCommand::Agent => "switch the active agent thread",
@@ -106,7 +108,8 @@ impl SlashCommand {
             | SlashCommand::Mcp
             | SlashCommand::Feedback
             | SlashCommand::Quit
-            | SlashCommand::Exit => true,
+            | SlashCommand::Exit
+            | SlashCommand::Mode => true,
             SlashCommand::Rollout => true,
             SlashCommand::TestApproval => true,
             SlashCommand::Collab => true,
