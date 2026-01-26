@@ -3020,13 +3020,13 @@ async fn experimental_features_popup_snapshot() {
     let (mut chat, _rx, _op_rx) = make_chatwidget_manual(None).await;
 
     let features = vec![
-        BetaFeatureItem {
+        ExperimentalFeatureItem {
             feature: Feature::GhostCommit,
             name: "Ghost snapshots".to_string(),
             description: "Capture undo snapshots each turn.".to_string(),
             enabled: false,
         },
-        BetaFeatureItem {
+        ExperimentalFeatureItem {
             feature: Feature::ShellTool,
             name: "Shell tool".to_string(),
             description: "Allow the model to run shell commands.".to_string(),
@@ -3046,7 +3046,7 @@ async fn experimental_features_toggle_saves_on_exit() {
 
     let expected_feature = Feature::GhostCommit;
     let view = ExperimentalFeaturesView::new(
-        vec![BetaFeatureItem {
+        vec![ExperimentalFeatureItem {
             feature: expected_feature,
             name: "Ghost snapshots".to_string(),
             description: "Capture undo snapshots each turn.".to_string(),
