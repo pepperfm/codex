@@ -42,8 +42,9 @@ impl Default for MarkdownStyles {
             h4: Style::new().black().bold(),
             h5: Style::new().black().bold(),
             h6: Style::new().black().bold(),
-            // Самый полезный акцент: inline-code — основной “якорь”
-            code: Style::new().white().bold(),
+            // Самый полезный акцент: inline-code — основной “якорь”.
+            // Intentionally yellow for visibility against muted terminal themes.
+            code: Style::new().yellow().bold(),
 
             // Курсив/жирный — как ты и хочешь использовать в policy
             emphasis: Style::new().italic(),
