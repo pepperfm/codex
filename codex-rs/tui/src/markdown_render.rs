@@ -36,18 +36,18 @@ impl Default for MarkdownStyles {
         use ratatui::style::Stylize;
 
         Self {
-            h1: Style::new().cyan().bold(),
-            h2: Style::new().cyan().bold(),
-            h3: Style::new().cyan().bold(),
-            h4: Style::new().cyan().bold(),
-            h5: Style::new().cyan().bold(),
-            h6: Style::new().cyan().bold(),
+            h1: Style::new().black().bold(),
+            h2: Style::new().black().bold(),
+            h3: Style::new().black().bold(),
+            h4: Style::new().black().bold(),
+            h5: Style::new().black().bold(),
+            h6: Style::new().black().bold(),
             // Самый полезный акцент: inline-code — основной “якорь”
-            code: Style::new().cyan().bold(),
+            code: Style::new().white().bold(),
 
             // Курсив/жирный — как ты и хочешь использовать в policy
             emphasis: Style::new().italic(),
-            strong: Style::new().magenta().bold(),
+            strong: Style::new().bold(),
 
             strikethrough: Style::new().crossed_out(),
 
@@ -708,7 +708,7 @@ mod tests {
             }
         }
 
-        let expected = Style::new().fg(Color::Cyan).add_modifier(Modifier::BOLD);
+        let expected = Style::new().fg(Color::Yellow).add_modifier(Modifier::BOLD);
         assert_eq!(
             code_style.expect("expected inline code span style"),
             expected

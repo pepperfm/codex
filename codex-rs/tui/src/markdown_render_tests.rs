@@ -41,17 +41,17 @@ fn headings() {
     let md = "# Heading 1\n## Heading 2\n### Heading 3\n#### Heading 4\n##### Heading 5\n###### Heading 6\n";
     let text = render_markdown_text(md);
     let expected = Text::from_iter([
-        Line::from_iter(["# ".cyan().bold(), "Heading 1".cyan().bold()]),
+        Line::from_iter(["# ".dark_gray().bold(), "Heading 1".dark_gray().bold()]),
         Line::default(),
-        Line::from_iter(["## ".cyan().bold(), "Heading 2".cyan().bold()]),
+        Line::from_iter(["## ".dark_gray().bold(), "Heading 2".dark_gray().bold()]),
         Line::default(),
-        Line::from_iter(["### ".cyan().bold(), "Heading 3".cyan().bold()]),
+        Line::from_iter(["### ".dark_gray().bold(), "Heading 3".dark_gray().bold()]),
         Line::default(),
-        Line::from_iter(["#### ".cyan().bold(), "Heading 4".cyan().bold()]),
+        Line::from_iter(["#### ".dark_gray().bold(), "Heading 4".dark_gray().bold()]),
         Line::default(),
-        Line::from_iter(["##### ".cyan().bold(), "Heading 5".cyan().bold()]),
+        Line::from_iter(["##### ".dark_gray().bold(), "Heading 5".dark_gray().bold()]),
         Line::default(),
-        Line::from_iter(["###### ".cyan().bold(), "Heading 6".cyan().bold()]),
+        Line::from_iter(["###### ".dark_gray().bold(), "Heading 6".dark_gray().bold()]),
     ]);
     assert_eq!(text, expected);
 }
@@ -383,8 +383,8 @@ fn blockquote_heading_inherits_heading_style() {
         [
             Line::from_iter([
                 "> ".into(),
-                "# ".cyan().bold(),
-                "test header".cyan().bold(),
+                "# ".dark_gray().bold(),
+                "test header".dark_gray().bold(),
             ])
             .green(),
             Line::from_iter(["> "]).green(),
@@ -616,7 +616,7 @@ fn ordered_item_with_indented_continuation_is_tight() {
 #[test]
 fn inline_code() {
     let text = render_markdown_text("Example of `Inline code`");
-    let expected = Line::from_iter(["Example of ".into(), "Inline code".cyan().bold()]).into();
+    let expected = Line::from_iter(["Example of ".into(), "Inline code".yellow().bold()]).into();
     assert_eq!(text, expected);
 }
 
@@ -624,7 +624,7 @@ fn inline_code() {
 fn strong() {
     assert_eq!(
         render_markdown_text("**Strong**"),
-        Text::from(Line::from("Strong".magenta().bold()))
+        Text::from(Line::from("Strong".bold()))
     );
 }
 
@@ -648,8 +648,8 @@ fn strikethrough() {
 fn strong_emphasis() {
     let text = render_markdown_text("**Strong *emphasis***");
     let expected = Text::from(Line::from_iter([
-        "Strong ".magenta().bold(),
-        "emphasis".magenta().bold().italic(),
+        "Strong ".bold(),
+        "emphasis".bold().italic(),
     ]));
     assert_eq!(text, expected);
 }

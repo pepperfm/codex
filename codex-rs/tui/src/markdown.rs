@@ -1,11 +1,40 @@
+use std::borrow::Cow;
+
 use ratatui::text::Line;
+
+const CITATION_START: char = '\u{E200}';
+const CITATION_END: char = '\u{E201}';
 pub(crate) fn append_markdown(
     markdown_source: &str,
     width: Option<usize>,
     lines: &mut Vec<Line<'static>>,
 ) {
-    let rendered = crate::markdown_render::render_markdown_text_with_width(markdown_source, width);
+    let sanitized = strip_citations(markdown_source);
+    let rendered = crate::markdown_render::render_markdown_text_with_width(&sanitized, width);
     crate::render::line_utils::push_owned_lines(&rendered.lines, lines);
+}
+
+fn strip_citations(input: &str) -> Cow<'_, str> {
+    if !input.chars().any(|ch| ch == CITATION_START) {
+        return Cow::Borrowed(input);
+    }
+
+    let mut out = String::with_capacity(input.len());
+    let mut skipping = false;
+    for ch in input.chars() {
+        if skipping {
+            if ch == CITATION_END {
+                skipping = false;
+            }
+            continue;
+        }
+        if ch == CITATION_START {
+            skipping = true;
+            continue;
+        }
+        out.push(ch);
+    }
+    Cow::Owned(out)
 }
 
 #[cfg(test)]
@@ -39,6 +68,15 @@ mod tests {
                 "After 【F:/x.rs†L3】".to_string()
             ]
         );
+    }
+
+    #[test]
+    fn inline_tool_citations_are_stripped() {
+        let src = "Before \u{E200}cite\u{E202}turn1search0\u{E201}\nAfter\n";
+        let mut out = Vec::new();
+        append_markdown(src, None, &mut out);
+        let rendered = lines_to_strings(&out);
+        assert_eq!(rendered, vec!["Before".to_string(), "After".to_string()]);
     }
 
     #[test]
