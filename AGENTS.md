@@ -112,3 +112,8 @@ If you don’t have the tool:
   let request = mock.single_request();
   // assert using request.function_call_output(call_id) or request.json_body() or other helpers.
   ```
+
+# Project notes
+
+Before changing Git/workflow behavior or updating the fork, review:
+`.ai/guidelines/00-project-owerview.md`
