@@ -58,6 +58,37 @@ impl ChatWidget {
         });
     }
 
+    pub(crate) fn open_session_skills_menu(&mut self) {
+        let items = vec![
+            SelectionItem {
+                name: "Manage session skills".to_string(),
+                description: Some("Apply skills to every message in this session.".to_string()),
+                actions: vec![Box::new(|tx| {
+                    tx.send(AppEvent::OpenManageSessionSkillsPopup);
+                })],
+                dismiss_on_select: true,
+                ..Default::default()
+            },
+            SelectionItem {
+                name: "Reset session skills".to_string(),
+                description: Some("Stop applying session skills.".to_string()),
+                actions: vec![Box::new(|tx| {
+                    tx.send(AppEvent::ResetSessionSkills);
+                })],
+                dismiss_on_select: true,
+                ..Default::default()
+            },
+        ];
+
+        self.bottom_pane.show_selection_view(SelectionViewParams {
+            title: Some("Session Skills".to_string()),
+            subtitle: Some("Choose an action".to_string()),
+            footer_hint: Some(standard_popup_hint_line()),
+            items,
+            ..Default::default()
+        });
+    }
+
     pub(crate) fn open_manage_skills_popup(&mut self) {
         if self.skills_all.is_empty() {
             self.add_info_message("No skills available.".to_string(), None);
@@ -93,6 +124,51 @@ impl ChatWidget {
         self.bottom_pane.show_view(Box::new(view));
     }
 
+    pub(crate) fn open_manage_session_skills_popup(&mut self) {
+        let enabled_skills = enabled_skills_for_mentions(&self.skills_all);
+        if enabled_skills.is_empty() {
+            self.add_info_message("No enabled skills available.".to_string(), None);
+            return;
+        }
+
+        let items: Vec<SkillsToggleItem> = enabled_skills
+            .iter()
+            .map(|skill| {
+                let display_name = skill_display_name(skill).to_string();
+                let description = skill_description(skill).to_string();
+                SkillsToggleItem {
+                    name: display_name,
+                    skill_name: skill.name.clone(),
+                    description,
+                    enabled: self.session_skill_overrides.contains(&skill.name),
+                    path: skill.path.clone(),
+                }
+            })
+            .collect();
+
+        let view = SkillsToggleView::new_session(items, self.app_event_tx.clone());
+        self.bottom_pane.show_view(Box::new(view));
+    }
+
+    pub(crate) fn set_session_skill_enabled(&mut self, skill_name: String, enabled: bool) {
+        if enabled {
+            self.session_skill_overrides.insert(skill_name);
+        } else {
+            self.session_skill_overrides.remove(&skill_name);
+        }
+    }
+
+    pub(crate) fn reset_session_skills(&mut self) {
+        if self.session_skill_overrides.is_empty() {
+            self.add_info_message("Session skills are already cleared.".to_string(), None);
+            return;
+        }
+        self.session_skill_overrides.clear();
+        self.add_info_message("Session skills cleared.".to_string(), None);
+    }
+
+    pub(crate) fn handle_manage_session_skills_closed(&mut self) {}
+
     pub(crate) fn update_skill_enabled(&mut self, path: PathBuf, enabled: bool) {
         let target = normalize_skill_config_path(&path);
         for skill in &mut self.skills_all {
@@ -100,6 +176,7 @@ impl ChatWidget {
                 skill.enabled = enabled;
             }
         }
+        self.prune_session_skill_overrides();
         self.set_skills(Some(enabled_skills_for_mentions(&self.skills_all)));
     }
 
@@ -139,6 +216,7 @@ impl ChatWidget {
     pub(crate) fn set_skills_from_response(&mut self, response: &ListSkillsResponseEvent) {
         let skills = skills_for_cwd(&self.config.cwd, &response.skills);
         self.skills_all = skills;
+        self.prune_session_skill_overrides();
         self.set_skills(Some(enabled_skills_for_mentions(&self.skills_all)));
     }
 }
@@ -151,7 +229,7 @@ fn skills_for_cwd(cwd: &Path, skills_entries: &[SkillsListEntry]) -> Vec<Protoco
         .unwrap_or_default()
 }
 
-fn enabled_skills_for_mentions(skills: &[ProtocolSkillMetadata]) -> Vec<SkillMetadata> {
+pub(crate) fn enabled_skills_for_mentions(skills: &[ProtocolSkillMetadata]) -> Vec<SkillMetadata> {
     skills
         .iter()
         .filter(|skill| skill.enabled)

@@ -20,7 +20,6 @@ use codex_protocol::openai_models::ModelPreset;
 
 use crate::bottom_pane::ApprovalRequest;
 use crate::history_cell::HistoryCell;
-use crate::mode_preset::ModePreset;
 
 use codex_core::features::Feature;
 use codex_core::protocol::AskForApproval;
@@ -126,8 +125,6 @@ pub(crate) enum AppEvent {
     /// Update the active collaboration mask in the running app and widget.
     UpdateCollaborationMode(CollaborationModeMask),
 
-    /// Update the sticky prompt mode preset in the running app and widget.
-    UpdatePromptMode(ModePreset),
     /// Update the current personality in the running app and widget.
     UpdatePersonality(Personality),
     /// Persist the selected model and reasoning effort to the appropriate config.
@@ -251,14 +248,29 @@ pub(crate) enum AppEvent {
     /// Open the skills enable/disable picker.
     OpenManageSkillsPopup,
 
+    /// Open the session skills enable/disable picker.
+    OpenManageSessionSkillsPopup,
+
     /// Enable or disable a skill by path.
     SetSkillEnabled {
         path: PathBuf,
         enabled: bool,
     },
 
+    /// Enable or disable a session skill by name.
+    SetSessionSkillEnabled {
+        skill_name: String,
+        enabled: bool,
+    },
+
+    /// Clear session skills.
+    ResetSessionSkills,
+
     /// Notify that the manage skills popup was closed.
     ManageSkillsClosed,
+
+    /// Notify that the manage session skills popup was closed.
+    ManageSessionSkillsClosed,
 
     /// Re-open the permissions presets popup.
     OpenPermissionsPopup,

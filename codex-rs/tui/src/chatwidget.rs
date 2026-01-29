@@ -28,7 +28,6 @@ use std::sync::Arc;
 use std::time::Duration;
 use std::time::Instant;
 
-use crate::mode_preset::ModePreset;
 use crate::version::CODEX_CLI_VERSION;
 use codex_app_server_protocol::AuthMode;
 use codex_backend_client::Client as BackendClient;
@@ -194,6 +193,7 @@ mod session_header;
 use self::session_header::SessionHeader;
 mod skills;
 use self::skills::collect_tool_mentions;
+use self::skills::enabled_skills_for_mentions;
 use self::skills::find_app_mentions;
 use self::skills::find_skill_mentions_with_tool_mentions;
 use crate::streaming::controller::StreamController;
@@ -443,7 +443,7 @@ pub(crate) struct ChatWidget {
     current_collaboration_mode: CollaborationMode,
     /// The currently active collaboration mask, if any.
     active_collaboration_mask: Option<CollaborationModeMask>,
-    current_mode: ModePreset,
+    session_skill_overrides: HashSet<String>,
     auth_manager: Arc<AuthManager>,
     models_manager: Arc<ModelsManager>,
     otel_manager: OtelManager,
@@ -621,15 +621,6 @@ pub(crate) fn create_initial_user_message(
 
 const MANUAL_PREFIXES: [&str; 4] = ["^base", "^soft", "^strict", "^nuxt"];
 
-fn has_manual_prefix(text: &str) -> bool {
-    let trimmed = text.trim_start();
-    MANUAL_PREFIXES.iter().any(|prefix| {
-        trimmed.strip_prefix(prefix).is_some_and(|rest| {
-            rest.is_empty() || rest.chars().next().is_some_and(|ch| ch.is_whitespace())
-        })
-    })
-}
-
 fn normalize_manual_prefix_newline(
     raw: String,
     text_elements: Vec<TextElement>,
@@ -673,34 +664,6 @@ fn normalize_manual_prefix_newline(
     }
 
     (raw, text_elements)
-}
-
-fn apply_mode_prefix(
-    mode: ModePreset,
-    raw: String,
-    text_elements: Vec<TextElement>,
-) -> (String, Vec<TextElement>) {
-    if raw.is_empty() || has_manual_prefix(&raw) {
-        return (raw, text_elements);
-    }
-
-    let prefix = mode.prefix();
-    if prefix.is_empty() {
-        return (raw, text_elements);
-    }
-
-    let offset = prefix.len();
-    let text_elements = text_elements
-        .into_iter()
-        .map(|elem| {
-            elem.map_range(|range| ByteRange {
-                start: range.start.saturating_add(offset),
-                end: range.end.saturating_add(offset),
-            })
-        })
-        .collect();
-
-    (format!("{prefix}{raw}"), text_elements)
 }
 
 // When merging multiple queued drafts (e.g., after interrupt), each draft starts numbering
@@ -2142,7 +2105,7 @@ impl ChatWidget {
             skills_initial_state: None,
             current_collaboration_mode,
             active_collaboration_mask,
-            current_mode: ModePreset::default(),
+            session_skill_overrides: HashSet::new(),
             auth_manager,
             models_manager,
             otel_manager,
@@ -2281,7 +2244,7 @@ impl ChatWidget {
             skills_initial_state: None,
             current_collaboration_mode,
             active_collaboration_mask,
-            current_mode: ModePreset::default(),
+            session_skill_overrides: HashSet::new(),
             auth_manager,
             models_manager,
             otel_manager,
@@ -2409,7 +2372,7 @@ impl ChatWidget {
             skills_initial_state: None,
             current_collaboration_mode,
             active_collaboration_mask,
-            current_mode: ModePreset::default(),
+            session_skill_overrides: HashSet::new(),
             auth_manager,
             models_manager,
             otel_manager,
@@ -2712,9 +2675,6 @@ impl ChatWidget {
             SlashCommand::Personality => {
                 self.open_personality_popup();
             }
-            SlashCommand::Mode => {
-                self.open_mode_popup();
-            }
             SlashCommand::Collab => {
                 if self.collaboration_modes_enabled() {
                     self.open_collaboration_modes_popup();
@@ -2814,6 +2774,9 @@ impl ChatWidget {
             }
             SlashCommand::Skills => {
                 self.open_skills_menu();
+            }
+            SlashCommand::SessionSkills => {
+                self.open_session_skills_menu();
             }
             SlashCommand::Status => {
                 self.add_status_output();
@@ -3012,7 +2975,6 @@ impl ChatWidget {
         }
 
         let (text, text_elements) = normalize_manual_prefix_newline(text, text_elements);
-        let (text, text_elements) = apply_mode_prefix(self.current_mode, text, text_elements);
 
         for image in &local_images {
             items.push(UserInput::LocalImage {
@@ -3028,15 +2990,34 @@ impl ChatWidget {
         }
 
         let mentions = collect_tool_mentions(&text, &mention_paths);
-        let mut skill_names_lower: HashSet<String> = HashSet::new();
-
-        if let Some(skills) = self.bottom_pane.skills() {
-            skill_names_lower = skills
-                .iter()
-                .map(|skill| skill.name.to_ascii_lowercase())
-                .collect();
-            let skill_mentions = find_skill_mentions_with_tool_mentions(&mentions, skills);
-            for skill in skill_mentions {
+        let enabled_skills = self
+            .bottom_pane
+            .skills()
+            .cloned()
+            .unwrap_or_else(|| enabled_skills_for_mentions(&self.skills_all));
+        let skill_names_lower: HashSet<String> = enabled_skills
+            .iter()
+            .map(|skill| skill.name.to_ascii_lowercase())
+            .collect();
+        let mut skills_by_name = HashMap::new();
+        for skill in &enabled_skills {
+            skills_by_name.insert(skill.name.clone(), skill.clone());
+        }
+        let mut seen_skills = HashSet::new();
+        for skill_name in &self.session_skill_overrides {
+            let Some(skill) = skills_by_name.get(skill_name) else {
+                continue;
+            };
+            if seen_skills.insert(skill.name.clone()) {
+                items.push(UserInput::Skill {
+                    name: skill.name.clone(),
+                    path: skill.path.clone(),
+                });
+            }
+        }
+        let skill_mentions = find_skill_mentions_with_tool_mentions(&mentions, &enabled_skills);
+        for skill in skill_mentions {
+            if seen_skills.insert(skill.name.clone()) {
                 items.push(UserInput::Skill {
                     name: skill.name.clone(),
                     path: skill.path.clone(),
@@ -3642,35 +3623,6 @@ impl ChatWidget {
             }
         };
         self.open_model_popup_with_presets(presets);
-    }
-
-    /// Open a popup to choose a sticky prompt mode preset.
-    pub(crate) fn open_mode_popup(&mut self) {
-        let current_mode = self.current_mode;
-        let items: Vec<SelectionItem> = ModePreset::all()
-            .into_iter()
-            .map(|mode| {
-                let actions: Vec<SelectionAction> = vec![Box::new(move |tx| {
-                    tx.send(AppEvent::UpdatePromptMode(mode));
-                })];
-                SelectionItem {
-                    name: mode.label().to_string(),
-                    description: Some(mode.description().to_string()),
-                    is_current: mode == current_mode,
-                    actions,
-                    dismiss_on_select: true,
-                    ..Default::default()
-                }
-            })
-            .collect();
-
-        self.bottom_pane.show_selection_view(SelectionViewParams {
-            title: Some("Select Mode".to_string()),
-            subtitle: Some("Pick a sticky prompt mode.".to_string()),
-            footer_hint: Some(standard_popup_hint_line()),
-            items,
-            ..Default::default()
-        });
     }
 
     pub(crate) fn open_personality_popup(&mut self) {
@@ -4999,10 +4951,14 @@ impl ChatWidget {
         self.config.model_personality = Some(personality);
     }
 
-    pub(crate) fn set_prompt_mode(&mut self, mode: ModePreset) {
-        self.current_mode = mode;
-        let label = mode.label();
-        self.add_info_message(format!("Mode set: {label}"), None);
+    fn prune_session_skill_overrides(&mut self) {
+        if self.session_skill_overrides.is_empty() {
+            return;
+        }
+        let enabled = enabled_skills_for_mentions(&self.skills_all);
+        let enabled_names: HashSet<String> = enabled.into_iter().map(|skill| skill.name).collect();
+        self.session_skill_overrides
+            .retain(|name| enabled_names.contains(name));
     }
 
     /// Set the model in the widget's config copy and stored collaboration mode.
