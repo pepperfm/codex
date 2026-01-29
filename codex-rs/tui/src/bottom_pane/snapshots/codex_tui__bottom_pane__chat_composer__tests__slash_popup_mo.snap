@@ -1,9 +1,10 @@
 ---
 source: tui/src/bottom_pane/chat_composer.rs
+assertion_line: 4347
 expression: terminal.backend()
 ---
 "                                                            "
 "› /mo                                                       "
 "                                                            "
+"                                                            "
 "  /model  choose what model and reasoning effort to use     "
-"  /mode   switch prompt mode (base/soft/strict/nuxt)        "

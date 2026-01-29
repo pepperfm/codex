@@ -1548,9 +1548,6 @@ impl App {
             AppEvent::UpdateCollaborationMode(mask) => {
                 self.chat_widget.set_collaboration_mask(mask);
             }
-            AppEvent::UpdatePromptMode(mode) => {
-                self.chat_widget.set_prompt_mode(mode);
-            }
             AppEvent::UpdatePersonality(personality) => {
                 self.on_update_personality(personality);
             }
