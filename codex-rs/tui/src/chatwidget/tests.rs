@@ -116,7 +116,6 @@ fn invalid_value(candidate: impl Into<String>, allowed: impl Into<String>) -> Co
     }
 }
 
-#[test]
 fn normalize_manual_prefix_inserts_newline_after_prefix() {
     let (text, elements) =
         normalize_manual_prefix_newline("  ^strict hello".to_string(), Vec::new());

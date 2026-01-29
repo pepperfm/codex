@@ -36,12 +36,12 @@ impl Default for MarkdownStyles {
         use ratatui::style::Stylize;
 
         Self {
-            h1: Style::new().black().bold(),
-            h2: Style::new().black().bold(),
-            h3: Style::new().black().bold(),
-            h4: Style::new().black().bold(),
-            h5: Style::new().black().bold(),
-            h6: Style::new().black().bold(),
+            h1: Style::new().dark_gray().bold(),
+            h2: Style::new().dark_gray().bold(),
+            h3: Style::new().dark_gray().bold(),
+            h4: Style::new().dark_gray().bold(),
+            h5: Style::new().dark_gray().bold(),
+            h6: Style::new().dark_gray().bold(),
             // Самый полезный акцент: inline-code — основной “якорь”.
             // Intentionally yellow for visibility against muted terminal themes.
             code: Style::new().yellow().bold(),

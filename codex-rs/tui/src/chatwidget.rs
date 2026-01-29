@@ -620,7 +620,6 @@ pub(crate) fn create_initial_user_message(
 }
 
 const MANUAL_PREFIXES: [&str; 4] = ["^base", "^soft", "^strict", "^nuxt"];
-
 fn normalize_manual_prefix_newline(
     raw: String,
     text_elements: Vec<TextElement>,
