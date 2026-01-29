@@ -323,28 +323,17 @@ pub(crate) fn single_line_footer_layout(
     let context_requires_cycle_hint = show_cycle_hint && !show_queue_hint;
 
     if show_queue_hint {
-        // In queue mode, prefer dropping context before dropping the queue hint.
-        let queue_states = [
-            default_state,
-            LeftSideState {
-                hint: SummaryHintKind::QueueMessage,
-                show_cycle_hint: false,
-            },
-            LeftSideState {
-                hint: SummaryHintKind::QueueShort,
-                show_cycle_hint: false,
-            },
-        ];
+        // In queue mode, shorten the queue hint before dropping the context
+        // indicator when space is tight.
+        let queue_short_state = LeftSideState {
+            hint: SummaryHintKind::QueueShort,
+            show_cycle_hint: false,
+        };
 
         // Pass 1: keep the right-side context indicator if any queue variant
-        // can fit alongside it. We skip adjacent duplicates because
-        // `default_state` can already be the no-cycle queue variant.
-        let mut previous_state: Option<LeftSideState> = None;
-        for state in queue_states {
-            if previous_state == Some(state) {
-                continue;
-            }
-            previous_state = Some(state);
+        // can fit alongside it.
+        let queue_states_with_context = [default_state, queue_short_state];
+        for state in queue_states_with_context {
             let width = state_width(state);
             if width > 0 && can_show_left_with_context(area, width, context_width) {
                 if state == default_state {
@@ -355,13 +344,9 @@ pub(crate) fn single_line_footer_layout(
         }
 
         // Pass 2: if context cannot fit, drop it before dropping the queue
-        // hint. Reuse the same dedupe so we do not try equivalent states twice.
-        let mut previous_state: Option<LeftSideState> = None;
-        for state in queue_states {
-            if previous_state == Some(state) {
-                continue;
-            }
-            previous_state = Some(state);
+        // hint.
+        let queue_states_without_context = [default_state, queue_short_state];
+        for state in queue_states_without_context {
             let width = state_width(state);
             if width > 0 && left_fits(area, width) {
                 if state == default_state {
@@ -1237,6 +1222,25 @@ mod tests {
                 context_window_percent: None,
                 context_window_used_tokens: None,
             },
+        );
+
+        let props = FooterProps {
+            mode: FooterMode::ComposerHasDraft,
+            esc_backtrack_hint: false,
+            use_shift_enter_hint: false,
+            is_task_running: true,
+            steer_enabled: true,
+            collaboration_modes_enabled: true,
+            is_wsl: false,
+            quit_shortcut_key: key_hint::ctrl(KeyCode::Char('c')),
+            context_window_percent: Some(72),
+            context_window_used_tokens: None,
+        };
+        snapshot_footer_with_mode_indicator(
+            "footer_queue_hint_context_prefers_short",
+            50,
+            props,
+            Some(CollaborationModeIndicator::Code),
         );
 
         let props = FooterProps {
